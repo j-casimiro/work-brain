@@ -79,6 +79,12 @@ export function syncIssue(db: DB, indexer: Indexer, o: SyncOptions, issue: JiraI
   const existing = row ? matter(fs.readFileSync(path.join(o.vaultDir, ...row.path.split("/")), "utf8")) : undefined;
   const data = existing?.data ?? {};
   const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : []);
+  // `updated` = the ticket's own last activity, so a sync doesn't make every ticket look touched today
+  // (the journal and the activity calendar read it). A newer local edit (a skill, a hand edit) wins.
+  const asDay = (v: unknown) => (v instanceof Date ? v.toISOString().slice(0, 10) : typeof v === "string" ? v.slice(0, 10) : undefined);
+  const jiraDay = day(f.updated);
+  const localDay = asDay(data.updated);
+  const updated = [jiraDay, localDay].filter((x): x is string => !!x).sort().pop();
   const hasSummary = !!existing && splitSections(existing.content).some((s) => s.heading.toLowerCase() === "summary" && s.lines.join("").trim());
   const summary = hasSummary ? "" : firstParagraph(f.description);
 
@@ -96,12 +102,12 @@ export function syncIssue(db: DB, indexer: Indexer, o: SyncOptions, issue: JiraI
       date: day(f.created) ?? day(f.updated) ?? new Date().toLocaleDateString("en-CA"),
       status, assignee, source: "jira",
       links: parent ? [parent] : [], tags: typeTag ? [typeTag] : [],
-      summary,
+      summary, updated,
     });
   }
   // Never clears or moves an existing done date (a PR or "mark done" may have set it first).
   const needsDone = !!doneDate && !data.done;
-  if (needsDone) setDone(db, indexer, o.vaultDir, o.brain, issue.key, doneDate!);
+  if (needsDone) setDone(db, indexer, o.vaultDir, o.brain, issue.key, doneDate!, updated);
 
   if (!existing) return "created";
   return changed || needsDone ? "updated" : "unchanged";

@@ -112,7 +112,7 @@ export function writeNote(db: DB, indexer: Indexer, vaultDir: string, input: unk
   const data: Record<string, unknown> = {
     ...old.data,
     brain: p.brain, type: p.type, id: (old.data.id as string) ?? p.ext_id, title: p.title,
-    date: old.data.date ?? p.date, updated: today(),
+    date: old.data.date ?? p.date, updated: p.updated ?? today(),
     status: p.status ?? old.data.status, assignee: p.assignee ?? old.data.assignee, source: p.source, commit_sha: p.commit_sha ?? old.data.commit_sha,
     tags: union(old.data.tags, p.tags), links: union(old.data.links, p.links),
   };
@@ -127,13 +127,13 @@ export function writeNote(db: DB, indexer: Indexer, vaultDir: string, input: unk
 }
 
 /** Set (or clear, with date = null) a ticket's `done` date. Touches only frontmatter. */
-export function setDone(db: DB, indexer: Indexer, vaultDir: string, brain: string, extId: string, date: string | null) {
+export function setDone(db: DB, indexer: Indexer, vaultDir: string, brain: string, extId: string, date: string | null, updated = today()) {
   const row = db.prepare<[string, string], { path: string }>(
     "SELECT path FROM notes WHERE brain=? AND type='ticket' AND lower(ext_id)=lower(?)").get(brain, extId);
   if (!row) throw new Error(`No ticket note "${extId}". Create it first (write_note).`);
   const abs = path.join(vaultDir, ...row.path.split("/"));
   const { data, content } = matter(fs.readFileSync(abs, "utf8"));
-  const next: Record<string, unknown> = { ...data, updated: today() };
+  const next: Record<string, unknown> = { ...data, updated };
   if (date) next.done = date; else delete next.done;
   fs.writeFileSync(abs, `${renderFrontmatter(next)}\n${content.replace(/^\r?\n/, "")}`);
   indexer.indexFile(abs);

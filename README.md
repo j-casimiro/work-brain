@@ -47,6 +47,16 @@ npm run web    # http://127.0.0.1:4317
 - Live: the server watches the vault and pushes an SSE event on every change; the page re-fetches. Changes from skills, MCP tools and hand edits show within about a second.
 - Local only: bound to 127.0.0.1, rejects other `Host` headers (DNS rebinding), and writes need an `x-brain` header plus same-origin (no cross-site requests). No CDN assets.
 
+## Brain tab
+
+http://127.0.0.1:4317/#brain (`GET /api/brain`, `src/brain-stats.ts`), live like the tracker:
+
+- **Tiles:** notes by type, tickets done/open, % of sections embedded, journal entries in the last 20 weekdays.
+- **Activity calendar:** ~26 weeks; per day, notes created + last updated + done. The index keeps only each note's latest `updated`, so it's "last touched", not full history.
+- **Epics and tickets:** epic → ticket → subtask clusters from each ticket's first Jira-key link (its parent). Done = filled, open = ring. Click a ticket to open it in the tracker.
+- **Gaps:** empty sections per ticket, tickets without Summary/Why, `[[links]]` to notes that don't exist (Jira-key parents excluded), weekdays without a journal.
+- **Search health:** sections vs embedded, model, valid files, index size, last Jira refresh. **Top tags.**
+
 ## Jira sync
 
 Three ways in, same write logic (`src/jira-sync.ts`):
@@ -59,7 +69,7 @@ The query is `JIRA_JQL` (default `project = SMS AND assignee = currentUser() ORD
 
 - Owns only: title, Jira status, assignee, parent-epic link, issue-type tag, Summary (first prose paragraph of the description, only if the note has none), and `done` when unset.
 - `done` = date of `statuscategorychangedate` when the status is in `JIRA_DONE_STATUSES` (default `Done in BRANCH,Done in PROD`). An existing done date (from a PR or `mark_done`) is never changed or cleared.
-- Writes only when something it owns changed, so re-running doesn't bump `updated` (the journal relies on that).
+- Writes only when something it owns changed, so re-running doesn't bump `updated` (the journal relies on that). When it does write, `updated` = the later of the ticket's Jira `updated` date and the note's own.
 
 ## Search and embeddings
 
@@ -87,6 +97,7 @@ src/web.ts       ticket dashboard + REST (Hono), SSE live updates
 src/web/         dashboard.html (single file, no external assets)
 src/jira-sync.ts Jira issue -> ticket note (only-if-changed), done from status
 src/jira-api.ts  Jira REST search with API token (Refresh button, CLI)
+src/brain-stats.ts  Brain tab: counts, gaps, search health, activity, epic graph
 src/cli/         reindex [--full] [--no-embed], search, mcp-smoke
 ```
 

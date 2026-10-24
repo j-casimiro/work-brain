@@ -12,6 +12,8 @@
     --accent: #2f6f5e; --accent-soft: #e3efe9; --accent-text: #ffffff;
     --warn-soft: #f6ecd9; --warn-text: #7a5410; --link: #245ea8;
     --shadow: 0 1px 2px rgba(20, 20, 10, .05);
+    /* sequential (activity, gap bars): one green hue, empty -> busiest */
+    --seq-0: #ebeae4; --seq-1: #bfe5d1; --seq-2: #77c6a2; --seq-3: #33997a; --seq-4: #135f4a;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -20,6 +22,7 @@
       --accent: #5fb39a; --accent-soft: #1f3a32; --accent-text: #0e1a16;
       --warn-soft: #3a2f1b; --warn-text: #e3bf7a; --link: #7fb0ec;
       --shadow: none;
+      --seq-0: #262925; --seq-1: #18493a; --seq-2: #1d7558; --seq-3: #36a582; --seq-4: #8de0bd;
     }
   }
   :root[data-theme="dark"] {
@@ -28,6 +31,7 @@
     --accent: #5fb39a; --accent-soft: #1f3a32; --accent-text: #0e1a16;
     --warn-soft: #3a2f1b; --warn-text: #e3bf7a; --link: #7fb0ec;
     --shadow: none;
+    --seq-0: #262925; --seq-1: #18493a; --seq-2: #1d7558; --seq-3: #36a582; --seq-4: #8de0bd;
   }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
@@ -37,7 +41,9 @@
   }
   .wrap { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
   header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
-  h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; }
+  .views { display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); }
+  .views a { padding: 5px 12px; border-radius: 7px; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 15px; }
+  .views a[aria-current="page"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
   .who { color: var(--muted); font-size: 13px; }
   .live { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
@@ -84,6 +90,58 @@
     border-radius: 7px; padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer;
   }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  /* --- Brain view --- */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); }
+  .tile .label { color: var(--muted); font-size: 12px; }
+  .tile .value { font-size: 26px; font-weight: 650; letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .tile .sub { color: var(--muted); font-size: 12px; }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; box-shadow: var(--shadow); margin-bottom: 14px; min-width: 0; }
+  .panel-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .panel-head.sub { margin-top: 16px; }
+  .panel h2 { font-size: 13px; font-weight: 650; margin: 0; }
+  .panel h3 { font-size: 12px; font-weight: 600; color: var(--muted); margin: 14px 0 6px; }
+  .hint { color: var(--muted); font-size: 12px; }
+  .cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; }
+  .cols > .panel { margin-bottom: 14px; }
+  .calendar-wrap, .graph-wrap { overflow-x: auto; }
+  .calendar-wrap svg, .graph-wrap svg { display: block; }
+  .cal-legend { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 11px; margin-top: 8px; }
+  .cal-legend i { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+  .seq-0 { fill: var(--seq-0); background: var(--seq-0); } .seq-1 { fill: var(--seq-1); background: var(--seq-1); }
+  .seq-2 { fill: var(--seq-2); background: var(--seq-2); } .seq-3 { fill: var(--seq-3); background: var(--seq-3); }
+  .seq-4 { fill: var(--seq-4); background: var(--seq-4); }
+  .axis-label { fill: var(--muted); font-size: 10px; }
+  .graph-label { fill: var(--text); font-size: 11px; font-weight: 600; }
+  .graph-sub { fill: var(--muted); font-size: 10px; }
+  .graph-legend { display: flex; gap: 14px; color: var(--muted); font-size: 12px; margin-top: 8px; flex-wrap: wrap; }
+  .graph-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .node-done { fill: var(--accent); }
+  .node-open { fill: var(--surface); stroke: var(--muted); stroke-width: 1.5; }
+  .node-hub { fill: var(--surface-2); stroke: var(--border); }
+  .edge { stroke: var(--border); stroke-width: 1; }
+  .hit { fill: transparent; cursor: pointer; }
+  .bar-row { display: grid; grid-template-columns: 120px 1fr 64px; gap: 8px; align-items: center; margin: 5px 0; font-size: 13px; }
+  .bar-track { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; background: var(--seq-3); }
+  .bar-row .num { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+  .mini { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .mini td { padding: 5px 4px; border-top: 1px solid var(--border); vertical-align: top; }
+  .mini td:first-child { white-space: nowrap; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); font-size: 12px; background: var(--surface); }
+  .chip b { color: var(--text); font-weight: 600; margin-left: 4px; font-variant-numeric: tabular-nums; }
+  .facts-list { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13px; margin: 0; }
+  .facts-list dt { color: var(--muted); }
+  .facts-list dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .ok { color: var(--accent); } .warn { color: var(--warn-text); }
+  .note { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+  .linkish { background: none; border: 0; padding: 0; font: inherit; color: var(--link); cursor: pointer; font-weight: 600; }
+  .tip {
+    position: fixed; z-index: 10; pointer-events: none; max-width: 280px; padding: 6px 9px; border-radius: 7px;
+    background: var(--text); color: var(--bg); font-size: 12px; line-height: 1.35; box-shadow: 0 4px 14px rgba(0,0,0,.18);
+  }
+  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } .bar-row { grid-template-columns: 96px 1fr 56px; } }
   .sync { display: inline-flex; align-items: center; gap: 8px; }
   .sync-status { color: var(--muted); font-size: 12px; }
   .btn:disabled { opacity: .6; cursor: default; }
@@ -106,7 +164,10 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>Tickets</h1>
+    <nav class="views" aria-label="Views">
+      <a href="#tickets" id="nav-tickets">Tickets</a>
+      <a href="#brain" id="nav-brain">Brain</a>
+    </nav>
     <span class="who" id="who"></span>
     <span class="live" id="live"><span class="dot"></span><span id="live-text">connecting</span></span>
     <span class="sync">
@@ -115,11 +176,37 @@
     </span>
     <input class="search" id="q" type="search" placeholder="Filter by key or title" autocomplete="off">
   </header>
-  <div class="tabs" id="tabs" role="toolbar" aria-label="Range"></div>
   <div id="error"></div>
-  <div class="summary" id="summary"></div>
-  <div id="list"></div>
+  <main id="view-tickets">
+    <div class="tabs" id="tabs" role="toolbar" aria-label="Range"></div>
+    <div class="summary" id="summary"></div>
+    <div id="list"></div>
+  </main>
+  <main id="view-brain" hidden>
+    <div class="tiles" id="b-tiles"></div>
+    <section class="panel">
+      <div class="panel-head"><h2>Activity</h2><span class="hint" id="b-activity-hint"></span></div>
+      <div id="b-calendar"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Epics and tickets</h2><span class="hint">Click a ticket to open it in the tracker</span></div>
+      <div id="b-graph" class="graph-wrap"></div>
+    </section>
+    <div class="cols">
+      <section class="panel">
+        <div class="panel-head"><h2>Gaps</h2></div>
+        <div id="b-gaps"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>Search health</h2></div>
+        <div id="b-health"></div>
+        <div class="panel-head sub"><h2>Top tags</h2></div>
+        <div id="b-tags" class="chips"></div>
+      </section>
+    </div>
+  </main>
 </div>
+<div class="tip" id="tip" role="tooltip" hidden></div>
 <script>
 "use strict";
 const RANGES = [
@@ -301,12 +388,260 @@ function connect() {
   const live = document.getElementById("live"), text = document.getElementById("live-text");
   const es = new EventSource("/api/events");
   es.addEventListener("open", () => { live.classList.add("on"); text.textContent = "live"; load(); });
-  es.addEventListener("changed", load);
+  es.addEventListener("changed", () => { load(); if (location.hash === "#brain") loadBrain(); });
   es.addEventListener("error", () => { live.classList.remove("on"); text.textContent = "reconnecting"; });
 }
 
+// ===================== Brain view =====================
+let brain = null;
+const SVGNS = "http://www.w3.org/2000/svg";
+function s(tag, attrs, ...kids) {
+  const el = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null) continue;
+    if (k.startsWith("on")) el.addEventListener(k.slice(2), v); else el.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) if (kid != null) el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  return el;
+}
+const tipEl = document.getElementById("tip");
+function showTip(e, text) {
+  tipEl.textContent = text; tipEl.hidden = false;
+  const x = Math.min(e.clientX + 14, window.innerWidth - tipEl.offsetWidth - 8);
+  const y = e.clientY + 16 + tipEl.offsetHeight > window.innerHeight ? e.clientY - tipEl.offsetHeight - 10 : e.clientY + 16;
+  tipEl.style.left = `${Math.max(8, x)}px`; tipEl.style.top = `${y}px`;
+}
+const hideTip = () => { tipEl.hidden = true; };
+const tipAttrs = (text) => ({ onmousemove: (e) => showTip(e, text), onmouseleave: hideTip, "aria-label": text });
+
+function openInTracker(t) {
+  location.hash = "#tickets";
+  document.getElementById("q").value = t.key;
+  view = t.done ? "all" : "open";
+  open.add(t.key);
+  render();
+}
+
+async function loadBrain() {
+  try {
+    const res = await fetch("/api/brain");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    brain = await res.json();
+    renderBrain();
+  } catch (e) { showError(`Can't load brain stats: ${e.message}`); }
+}
+
+function renderBrain() {
+  if (!brain) return;
+  const d = brain, g = d.gaps, sh = d.search, tk = d.graph.tickets;
+  const done = tk.filter((t) => t.done).length;
+  const pct = sh.chunks ? Math.round((100 * sh.embedded) / sh.chunks) : 100;
+  const wroteJournal = g.journalLookback - g.missingJournal.length;
+  const tile = (label, value, sub) => h("div", { class: "tile" }, h("div", { class: "label" }, label), h("div", { class: "value" }, value), h("div", { class: "sub" }, sub));
+  const types = Object.entries(d.counts.byType).map(([t, n]) => `${n} ${t}${n === 1 ? "" : "s"}`).join(" · ");
+  document.getElementById("b-tiles").replaceChildren(
+    tile("Notes", d.counts.notes, types || "empty"),
+    tile("Tickets done", done, `${tk.length - done} open`),
+    tile("Search ready", `${pct}%`, `${sh.embedded} of ${sh.chunks} sections embedded`),
+    tile("Journal", `${wroteJournal}/${g.journalLookback}`, "of the last weekdays have an entry"),
+  );
+  renderCalendar(d);
+  renderGraph(d);
+  renderGaps(d);
+  renderHealth(d);
+}
+
+// --- activity calendar: weeks as columns, Mon..Sun as rows; one sequential hue ---
+function renderCalendar(d) {
+  const wrap = document.getElementById("b-calendar");
+  const days = d.activity.days, today = parse(d.today);
+  const total = (k) => (days[k] ? days[k].created + days[k].updated + days[k].done : 0);
+  const start = addDays(parse(d.activity.since), -((parse(d.activity.since).getDay() + 6) % 7));
+  const values = Object.keys(days).map(total).filter((n) => n > 0);
+  const max = Math.max(1, ...values);
+  const level = (n) => (n === 0 ? 0 : Math.min(4, Math.ceil((4 * n) / max)));
+  const C = 12, G = 3, left = 28, top = 16;
+  const weeks = Math.ceil(((today - start) / 864e5 + 1) / 7);
+  const svg = s("svg", { width: left + weeks * (C + G), height: top + 7 * (C + G), role: "img", "aria-label": "Activity calendar" });
+  ["Mon", "Wed", "Fri"].forEach((lbl, i) => svg.append(s("text", { x: 0, y: top + (i * 2) * (C + G) + 10, class: "axis-label" }, lbl)));
+  let lastMonth = -1;
+  for (let w = 0; w < weeks; w++) {
+    for (let r = 0; r < 7; r++) {
+      const day = addDays(start, w * 7 + r);
+      if (day > today) continue;
+      const key = fmt(day);
+      if (r === 0 && day.getMonth() !== lastMonth) {
+        lastMonth = day.getMonth();
+        svg.append(s("text", { x: left + w * (C + G), y: 10, class: "axis-label" }, day.toLocaleDateString(undefined, { month: "short" })));
+      }
+      const v = days[key] || { created: 0, updated: 0, done: 0 };
+      const n = total(key);
+      const parts = [v.done && `${v.done} done`, v.created && `${v.created} created`, v.updated && `${v.updated} last updated`].filter(Boolean);
+      const label = `${parse(key).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}: ${parts.join(", ") || "no activity"}`;
+      svg.append(s("rect", { x: left + w * (C + G), y: top + r * (C + G), width: C, height: C, rx: 2, class: `seq-${level(n)}`, ...tipAttrs(label) }));
+    }
+  }
+  const active = Object.keys(days).filter((k) => total(k) > 0);
+  const busiest = active.sort((a, b) => total(b) - total(a))[0];
+  document.getElementById("b-activity-hint").textContent = active.length
+    ? `${active.length} active days since ${short(d.activity.since)} · busiest ${short(busiest)} (${total(busiest)})` : "No activity yet";
+  const legend = h("div", { class: "cal-legend" }, "Less", [0, 1, 2, 3, 4].map((i) => h("i", { class: `seq-${i}` })), "More",
+    h("span", { style: "margin-left:10px" }, "Counts notes created, last updated and done per day (the index keeps each note's latest update only)."));
+  const scroller = h("div", { class: "calendar-wrap" }, svg);
+  wrap.replaceChildren(scroller, legend);
+  scroller.scrollLeft = scroller.scrollWidth; // narrow screens: start at the most recent weeks
+}
+
+// --- epic graph: epics → tickets → subtasks, packed radial clusters ---
+function renderGraph(d) {
+  const wrap = document.getElementById("b-graph");
+  const tickets = new Map(d.graph.tickets.map((t) => [t.key, t]));
+  const kids = new Map();
+  const roots = [];
+  for (const t of d.graph.tickets) {
+    if (t.parent && (tickets.has(t.parent) || d.graph.epics.includes(t.parent))) kids.set(t.parent, [...(kids.get(t.parent) || []), t.key]);
+  }
+  for (const e of d.graph.epics) roots.push({ key: e, epic: true });
+  const orphans = d.graph.tickets.filter((t) => !t.parent || !(tickets.has(t.parent) || d.graph.epics.includes(t.parent)));
+  if (orphans.length) { kids.set("__none", orphans.map((t) => t.key)); roots.push({ key: "__none", epic: true, label: "No epic" }); }
+  if (!roots.length) { wrap.replaceChildren(h("p", { class: "note" }, "No tickets yet.")); return; }
+
+  // measure: leaf r=5; a node with children gets a ring of them around it
+  const size = new Map();
+  const measure = (key) => {
+    const ch = kids.get(key) || [];
+    if (!ch.length) return size.set(key, { r: 5, ring: 0 }).get(key);
+    const rs = ch.map((c) => measure(c).r);
+    // Big enough to fit the children around the circumference, and to keep the largest child cluster off the hub.
+    const ring = Math.max(tickets.has(key) ? 18 : 26, rs.reduce((a, r) => a + 2 * r + 5, 0) / (2 * Math.PI), Math.max(...rs) + 14);
+    return size.set(key, { r: ring + Math.max(...rs) + 3, ring }).get(key);
+  };
+  roots.forEach((r) => measure(r.key));
+  roots.sort((a, b) => size.get(b.key).r - size.get(a.key).r);
+
+  const W = Math.max(320, wrap.clientWidth || 900), PAD = 14, LABEL = 18;
+  const pos = [];
+  let x = PAD, y = PAD, rowH = 0;
+  for (const r of roots) {
+    const R = size.get(r.key).r;
+    if (x + 2 * R > W - PAD && x > PAD) { x = PAD; y += rowH + LABEL + PAD; rowH = 0; }
+    pos.push({ root: r, cx: x + R, cy: y + R });
+    x += 2 * R + PAD; rowH = Math.max(rowH, 2 * R);
+  }
+  const H = y + rowH + LABEL + PAD;
+  const svg = s("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Tickets grouped by epic" });
+  const edges = s("g"), nodes = s("g"), labels = s("g");
+  svg.append(edges, nodes, labels);
+
+  const drawTicket = (key, cx, cy) => {
+    const t = tickets.get(key), sub = kids.get(key) || [];
+    const r = sub.length ? 7 : 4.5;
+    const label = `${key} — ${t.title}${t.status ? ` · ${t.status}` : ""}${t.done ? ` · done ${short(t.done)}` : " · open"}${sub.length ? ` · ${sub.length} subtasks` : ""}`;
+    nodes.append(s("circle", { cx, cy, r, class: t.done ? "node-done" : "node-open" }));
+    nodes.append(s("circle", { cx, cy, r: Math.max(9, r + 4), class: "hit", tabindex: 0, role: "button", ...tipAttrs(label),
+      onclick: () => openInTracker(t), onkeydown: (e) => { if (e.key === "Enter") openInTracker(t); } }));
+    if (sub.length) labels.append(s("text", { x: cx + r + 3, y: cy - r - 2, class: "graph-label" }, key));
+  };
+  const place = (key, cx, cy) => {
+    const ch = kids.get(key) || [], { ring } = size.get(key);
+    const total = ch.reduce((a, c) => a + 2 * size.get(c).r + 5, 0);
+    let angle = -Math.PI / 2;
+    for (const c of ch) {
+      const span = ((2 * size.get(c).r + 5) / total) * 2 * Math.PI;
+      const a = angle + span / 2; angle += span;
+      const px = cx + Math.cos(a) * ring, py = cy + Math.sin(a) * ring;
+      edges.append(s("line", { x1: cx, y1: cy, x2: px, y2: py, class: "edge" }));
+      place(c, px, py);
+      drawTicket(c, px, py);
+    }
+  };
+  for (const { root, cx, cy } of pos) {
+    place(root.key, cx, cy);
+    const n = (kids.get(root.key) || []).length;
+    nodes.append(s("circle", { cx, cy, r: 9, class: "node-hub", ...tipAttrs(`${root.label || root.key} · ${n} ticket${n === 1 ? "" : "s"}`) }));
+    labels.append(s("text", { x: cx, y: cy + size.get(root.key).r + 14, "text-anchor": "middle", class: "graph-label" }, root.label || root.key,
+      s("tspan", { class: "graph-sub", dx: 4 }, `${n}`)));
+  }
+  const legend = h("div", { class: "graph-legend" },
+    h("span", {}, svgDot("node-done"), "Done"), h("span", {}, svgDot("node-open"), "Open"),
+    h("span", {}, svgDot("node-hub", 6), "Epic (parent in Jira)"),
+    h("span", {}, "Bigger labelled dots have subtasks"));
+  wrap.replaceChildren(svg, legend);
+}
+function svgDot(cls, r = 5) {
+  return s("svg", { width: 2 * r + 4, height: 2 * r + 4, "aria-hidden": "true" }, s("circle", { cx: r + 2, cy: r + 2, r, class: cls }));
+}
+
+// --- gaps ---
+function renderGaps(d) {
+  const g = d.gaps, el = document.getElementById("b-gaps");
+  const bars = Object.entries(g.ticketSections).map(([name, empty]) => h("div", { class: "bar-row" },
+    h("span", {}, name),
+    h("div", { class: "bar-track", ...tipAttrs(`${name}: empty in ${empty} of ${g.tickets} ticket notes`) },
+      h("div", { class: "bar-fill", style: `width:${g.tickets ? (100 * empty) / g.tickets : 0}%` })),
+    h("span", { class: "num" }, `${empty} empty`)));
+  const thin = g.thinTickets.map((t) => h("tr", {},
+    h("td", {}, h("button", { class: "linkish", type: "button", onclick: () => openInTracker({ key: t.key, done: t.done }) }, t.key)),
+    h("td", {}, t.title), h("td", { class: "hint" }, t.missing.join(", "))));
+  const unresolved = g.unresolvedLinks.length
+    ? h("table", { class: "mini" }, g.unresolvedLinks.map((u) => h("tr", {}, h("td", {}, `[[${u.name}]]`), h("td", { class: "hint" }, `from ${u.sources}`))))
+    : h("p", { class: "note" }, `Every [[link]] points at an existing note. ${g.unresolvedJiraKeys} Jira keys (parent epics) have no note of their own, which is expected.`);
+  const journal = g.missingJournal.length === g.journalLookback
+    ? h("p", { class: "note" }, `No journal entries in the last ${g.journalLookback} weekdays. Say "end of day" in Claude to write one.`)
+    : g.missingJournal.length
+      ? h("div", { class: "chips" }, g.missingJournal.map((day) => h("span", { class: "chip" }, short(day))))
+      : h("p", { class: "note ok" }, `A journal entry for each of the last ${g.journalLookback} weekdays.`);
+  el.replaceChildren(
+    h("h3", {}, `Empty sections in ${g.tickets} ticket notes`), ...bars,
+    h("p", { class: "note" }, "Synced tickets only carry Jira metadata until a jira skill analyses or implements them."),
+    h("h3", {}, `Tickets without a Summary or Why (${g.thinTotal})`),
+    g.thinTotal ? h("table", { class: "mini" }, thin) : h("p", { class: "note ok" }, "None."),
+    g.thinTotal > g.thinTickets.length && h("p", { class: "note" }, `+${g.thinTotal - g.thinTickets.length} more`),
+    h("h3", {}, "Links to missing notes"), unresolved,
+    h("h3", {}, "Weekdays without a journal"), journal);
+}
+
+// --- search health + tags ---
+function renderHealth(d) {
+  const sh = d.search, r = d.refresh;
+  const [model, dim] = (sh.model || "").split("|");
+  const row = (k, v, cls) => [h("dt", {}, k), h("dd", { class: cls }, v)];
+  const mb = (sh.dbBytes / 1048576).toFixed(1);
+  const refreshed = r && r.finishedAt ? new Date(r.finishedAt).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "not since the dashboard started";
+  document.getElementById("b-health").replaceChildren(h("dl", { class: "facts-list" },
+    row("Sections", sh.chunks),
+    row("Embedded", `${sh.embedded} (${sh.chunks ? Math.round((100 * sh.embedded) / sh.chunks) : 100}%)`, sh.pending ? "warn" : "ok"),
+    row("Waiting", sh.pending ? `${sh.pending}: embedded by the MCP server or the next reindex` : "none", sh.pending ? "warn" : ""),
+    row("Model", model ? `${model.replace(/^Xenova\//, "")} · ${dim}-dim · runs locally` : "not set"),
+    row("Notes", `${sh.indexed} indexed of ${sh.files} files`),
+    row("Invalid", sh.invalid ? `${sh.invalid} file(s) skipped: check frontmatter` : "none", sh.invalid ? "warn" : ""),
+    row("Index size", `${mb} MB`),
+    row("Jira refresh", r && r.configured ? (r.error ? `failed: ${r.error}` : refreshed) : "token not set", r && r.error ? "warn" : ""),
+  ));
+  const tags = d.counts.tags;
+  document.getElementById("b-tags").replaceChildren(...(tags.length ? tags.map((t) => h("span", { class: "chip" }, t.tag, h("b", {}, t.n))) : [h("span", { class: "note" }, "No tags yet.")]));
+}
+
+// ===================== routing =====================
+function route() {
+  const isBrain = location.hash === "#brain";
+  document.getElementById("view-tickets").hidden = isBrain;
+  document.getElementById("view-brain").hidden = !isBrain;
+  document.getElementById("q").hidden = isBrain;
+  for (const [id, on] of [["nav-tickets", !isBrain], ["nav-brain", isBrain]]) {
+    const a = document.getElementById(id);
+    if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+  }
+  hideTip();
+  if (isBrain) loadBrain();
+}
+window.addEventListener("hashchange", route);
+let resizeTimer;
+window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (location.hash === "#brain") renderGraph(brain); }, 150); });
+
 document.getElementById("q").addEventListener("input", render);
 document.getElementById("refresh").addEventListener("click", startRefresh);
+route();
 load();
 connect();
 </script>

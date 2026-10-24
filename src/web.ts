@@ -6,6 +6,7 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import matter from "gray-matter";
+import { brainStats } from "./brain-stats.js";
 import { config } from "./config.js";
 import { openDb } from "./db.js";
 import { Indexer } from "./indexer.js";
@@ -69,7 +70,10 @@ app.use("*", async (c, next) => {
 });
 
 const page = path.join(config.root, "src", "web", "dashboard.html");
-app.get("/", (c) => c.html(fs.readFileSync(page, "utf8")));
+app.get("/", (c) => {
+  c.header("Cache-Control", "no-store"); // the page is read from disk per request; never serve a stale copy
+  return c.html(fs.readFileSync(page, "utf8"));
+});
 
 // --- Refresh from Jira (REST, API token). One run at a time; state is pushed to pages over SSE. ---
 const jiraAuth = { site: config.jiraSite, email: config.jiraEmail, token: config.jiraApiToken };
@@ -103,6 +107,8 @@ app.post("/api/refresh", (c) => {
 });
 
 app.get("/api/tickets", (c) => c.json({ today: today(), refresh, ...tickets() }));
+
+app.get("/api/brain", (c) => c.json({ ...brainStats(db, config.vaultDir, config.brain, today()), refresh }));
 
 app.post("/api/tickets/:key/done", async (c) => {
   const body = await c.req.json<{ date?: string; undo?: boolean }>().catch(() => ({} as { date?: string; undo?: boolean }));

@@ -48,6 +48,7 @@ export const WritePayload = z
     source: z.string().default("agent"),
     commit_sha: z.string().optional(),
     assignee: z.string().optional(),
+    updated: isoDate.optional(), // default today; jira-sync passes the ticket's own last-activity date
   })
   .strict();
 export type WritePayload = z.infer<typeof WritePayload>;
