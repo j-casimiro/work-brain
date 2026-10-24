@@ -84,6 +84,15 @@
     border-radius: 7px; padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer;
   }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .sync { display: inline-flex; align-items: center; gap: 8px; }
+  .sync-status { color: var(--muted); font-size: 12px; }
+  .btn:disabled { opacity: .6; cursor: default; }
+  .btn .spin {
+    display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px;
+    border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .btn .spin { animation: none; } }
   .empty { padding: 28px 16px; text-align: center; color: var(--muted); }
   .error { color: var(--warn-text); background: var(--warn-soft); padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; }
   @media (max-width: 640px) {
@@ -100,6 +109,10 @@
     <h1>Tickets</h1>
     <span class="who" id="who"></span>
     <span class="live" id="live"><span class="dot"></span><span id="live-text">connecting</span></span>
+    <span class="sync">
+      <button class="btn" id="refresh" type="button">Refresh from Jira</button>
+      <span class="sync-status" id="sync-status" aria-live="polite"></span>
+    </span>
     <input class="search" id="q" type="search" placeholder="Filter by key or title" autocomplete="off">
   </header>
   <div class="tabs" id="tabs" role="toolbar" aria-label="Range"></div>
@@ -239,6 +252,31 @@ function render() {
   }
 }
 
+function renderRefresh() {
+  const r = data.refresh, btn = document.getElementById("refresh"), status = document.getElementById("sync-status");
+  if (!r) return;
+  btn.disabled = !r.configured || r.running;
+  btn.title = r.configured ? "Pull your assigned tickets from Jira" : "Add JIRA_EMAIL and JIRA_API_TOKEN to brain-server\\.env, then restart the dashboard";
+  btn.replaceChildren(...(r.running ? [h("span", { class: "spin", "aria-hidden": "true" }), "Syncing…"] : ["Refresh from Jira"]));
+  if (!r.configured) { status.textContent = "Jira token not set"; return; }
+  if (r.running || !r.finishedAt) { status.textContent = ""; return; }
+  const at = new Date(r.finishedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const c = r.counts;
+  status.textContent = r.error && !c ? `Sync failed at ${at}` :
+    `Synced ${at}${c ? ` · ${c.created} new, ${c.updated} updated` : ""}`;
+  if (r.error) showError(`Jira sync: ${r.error}`);
+}
+
+async function startRefresh() {
+  const btn = document.getElementById("refresh");
+  btn.disabled = true;
+  const res = await fetch("/api/refresh", { method: "POST", headers: { "content-type": "application/json", "x-brain": "1" }, body: "{}" });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) showError(body.error || `Refresh failed (${res.status})`);
+  data.refresh = body.configured !== undefined ? body : data.refresh;
+  renderRefresh(); // the server pushes "changed" when the sync finishes; load() then shows the result
+}
+
 function showError(msg) {
   document.getElementById("error").replaceChildren(msg ? h("div", { class: "error" }, msg) : "");
 }
@@ -252,6 +290,7 @@ async function load() {
       `assigned to ${data.assignee}${data.hidden ? ` · ${data.hidden} assigned to others hidden` : ""}`;
     showError("");
     render();
+    renderRefresh();
   } catch (e) {
     showError(`Can't reach the brain server: ${e.message}`);
   }
@@ -267,6 +306,7 @@ function connect() {
 }
 
 document.getElementById("q").addEventListener("input", render);
+document.getElementById("refresh").addEventListener("click", startRefresh);
 load();
 connect();
 </script>

@@ -9,6 +9,9 @@ import matter from "gray-matter";
 import { config } from "./config.js";
 import { openDb } from "./db.js";
 import { Indexer } from "./indexer.js";
+import { jiraConfigured, searchAll } from "./jira-api.js";
+import { syncIssues } from "./jira-sync.js";
+import { embedPending } from "./vectors.js";
 import { watchVault } from "./watch.js";
 import { setDone, splitSections, today } from "./writer.js";
 
@@ -68,7 +71,38 @@ app.use("*", async (c, next) => {
 const page = path.join(config.root, "src", "web", "dashboard.html");
 app.get("/", (c) => c.html(fs.readFileSync(page, "utf8")));
 
-app.get("/api/tickets", (c) => c.json({ today: today(), ...tickets() }));
+// --- Refresh from Jira (REST, API token). One run at a time; state is pushed to pages over SSE. ---
+const jiraAuth = { site: config.jiraSite, email: config.jiraEmail, token: config.jiraApiToken };
+interface RefreshState {
+  configured: boolean; running: boolean; finishedAt: string | null; error: string | null;
+  counts: { created: number; updated: number; unchanged: number; failed: number } | null;
+}
+const refresh: RefreshState = { configured: jiraConfigured(jiraAuth), running: false, finishedAt: null, error: null, counts: null };
+
+async function runRefresh() {
+  refresh.running = true; refresh.error = null;
+  void broadcast();
+  try {
+    const issues = await searchAll(jiraAuth, config.jiraJql);
+    const s = syncIssues(db, indexer, { brain: config.brain, vaultDir: config.vaultDir, doneStatuses: config.jiraDoneStatuses }, issues);
+    refresh.counts = { created: s.created.length, updated: s.updated.length, unchanged: s.unchanged.length, failed: s.failed.length };
+    if (s.failed.length) refresh.error = `${s.failed.length} ticket(s) failed: ${s.failed.join(", ")}`;
+    void embedPending(db).catch((e) => console.error(`embedding failed: ${e}`)); // keeps semantic search current
+  } catch (e) {
+    refresh.error = e instanceof Error ? e.message : String(e);
+  } finally {
+    refresh.running = false; refresh.finishedAt = new Date().toISOString();
+    void broadcast();
+  }
+}
+
+app.post("/api/refresh", (c) => {
+  if (!refresh.configured) return c.json({ ...refresh, error: "Add JIRA_EMAIL and JIRA_API_TOKEN to brain-server\\.env, then restart the dashboard." }, 400);
+  if (!refresh.running) void runRefresh();
+  return c.json(refresh, 202);
+});
+
+app.get("/api/tickets", (c) => c.json({ today: today(), refresh, ...tickets() }));
 
 app.post("/api/tickets/:key/done", async (c) => {
   const body = await c.req.json<{ date?: string; undo?: boolean }>().catch(() => ({} as { date?: string; undo?: boolean }));

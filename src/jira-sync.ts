@@ -20,7 +20,7 @@ export interface JiraIssue {
     parent?: { key?: string };
     issuetype?: { name?: string };
     assignee?: { displayName?: string } | null;
-    description?: string | null;
+    description?: string | AdfNode | null; // MCP search: markdown/HTML string; REST v3: Atlassian Document Format
   };
 }
 
@@ -30,9 +30,25 @@ export type SyncAction = "created" | "updated" | "unchanged" | "skipped";
 /** "2026-10-08T15:43:21.741+1000" -> "2026-10-08": the date part is already the site's local time. */
 const day = (ts?: string) => (ts && /^\d{4}-\d{2}-\d{2}/.test(ts) ? ts.slice(0, 10) : undefined);
 
+export interface AdfNode { type?: string; text?: string; content?: AdfNode[] }
+
+/** ADF -> text with blank lines between blocks; headings, media and rules dropped (same rules as markdown below). */
+function adfToText(node: AdfNode): string {
+  const inline = (n: AdfNode): string => (n.type === "text" ? n.text ?? "" : n.type === "hardBreak" ? " " : (n.content ?? []).map(inline).join(""));
+  const blocks: string[] = [];
+  const walk = (n: AdfNode) => {
+    if (n.type === "paragraph") blocks.push(inline(n));
+    else if (["heading", "mediaSingle", "mediaGroup", "rule", "table", "codeBlock"].includes(n.type ?? "")) return;
+    else (n.content ?? []).forEach(walk);
+  };
+  walk(node);
+  return blocks.join("\n\n");
+}
+
 /** First paragraph of a Jira description as plain text, for a new note's Summary. */
-function firstParagraph(desc?: string | null): string {
-  if (!desc) return "";
+function firstParagraph(raw?: string | AdfNode | null): string {
+  if (!raw) return "";
+  const desc = typeof raw === "string" ? raw : adfToText(raw);
   const text = desc
     .replace(/<[^>]+>/g, " ") // descriptions with mentions/panels come back as HTML
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;|&#39;/g, "'")
@@ -89,6 +105,19 @@ export function syncIssue(db: DB, indexer: Indexer, o: SyncOptions, issue: JiraI
 
   if (!existing) return "created";
   return changed || needsDone ? "updated" : "unchanged";
+}
+
+export type SyncStats = Record<SyncAction, string[]> & { failed: string[] };
+
+/** Apply many issues; one failure doesn't stop the rest. Resolves links once at the end. */
+export function syncIssues(db: DB, indexer: Indexer, o: SyncOptions, issues: JiraIssue[]): SyncStats {
+  const stats: SyncStats = { created: [], updated: [], unchanged: [], skipped: [], failed: [] };
+  for (const issue of issues) {
+    try { stats[syncIssue(db, indexer, o, issue)].push(issue.key); }
+    catch (e) { stats.failed.push(issue.key); console.error(`  ${issue.key}: ${e}`); }
+  }
+  indexer.resolveLinks();
+  return stats;
 }
 
 /** Issues from a saved Atlassian MCP search result ({ issues: { nodes } }), or a plain array of issues. */

@@ -32,6 +32,12 @@ export const config = {
   jiraBrowseUrl: process.env.JIRA_BROWSE_URL ?? "https://samurai-cmms.atlassian.net/browse/",
   // The dashboard hides tickets assigned to anyone else (tickets with no assignee recorded still show).
   jiraAssignee: process.env.JIRA_ASSIGNEE ?? "Jehu Casimiro",
+  // Direct Jira REST access for the dashboard's Refresh button and `npm run jira-sync` with no files.
+  // The token is only ever sent to jiraSite; it is never logged or given to the page.
+  jiraSite: (process.env.JIRA_SITE ?? "https://samurai-cmms.atlassian.net").replace(/\/+$/, ""),
+  jiraEmail: process.env.JIRA_EMAIL ?? "",
+  jiraApiToken: process.env.JIRA_API_TOKEN ?? "",
+  jiraJql: process.env.JIRA_JQL ?? "project = SMS AND assignee = currentUser() ORDER BY updated DESC",
   // Jira statuses that mean dev implementation/fix is done (jira-sync sets `done` from these).
   jiraDoneStatuses: (process.env.JIRA_DONE_STATUSES ?? "Done in BRANCH,Done in PROD").split(",").map((s) => s.trim()).filter(Boolean),
 };

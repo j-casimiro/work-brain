@@ -49,7 +49,13 @@ npm run web    # http://127.0.0.1:4317
 
 ## Jira sync
 
-`npm run jira-sync -- <search-result.json> [...]` turns saved Atlassian MCP JQL results into ticket notes. Normally run through the `jira-sync` skill (`~\.claude\skills\jira-sync`), which fetches `project = SMS AND assignee = currentUser()`.
+Three ways in, same write logic (`src/jira-sync.ts`):
+
+- **Dashboard "Refresh from Jira" button** → `POST /api/refresh` → Jira REST (`src/jira-api.ts`, enhanced search `/rest/api/3/search/jql`, paged by `nextPageToken`). Needs `JIRA_EMAIL` + `JIRA_API_TOKEN` in `.env` (restart the dashboard after editing). About 1–2 s, no Claude usage. The token is sent only to `JIRA_SITE` over https and is never logged or exposed to the page.
+- **`npm run jira-sync`** (no args) → the same REST fetch from the command line.
+- **`npm run jira-sync -- <search-result.json> [...]`** → saved Atlassian MCP JQL results (the `jira-sync` skill's fallback when no token is set).
+
+The query is `JIRA_JQL` (default `project = SMS AND assignee = currentUser() ORDER BY updated DESC`). REST descriptions come as ADF and are flattened to text for the Summary.
 
 - Owns only: title, Jira status, assignee, parent-epic link, issue-type tag, Summary (first prose paragraph of the description, only if the note has none), and `done` when unset.
 - `done` = date of `statuscategorychangedate` when the status is in `JIRA_DONE_STATUSES` (default `Done in BRANCH,Done in PROD`). An existing done date (from a PR or `mark_done`) is never changed or cleared.
@@ -80,6 +86,7 @@ src/mcp.ts       MCP adapter (stdio)
 src/web.ts       ticket dashboard + REST (Hono), SSE live updates
 src/web/         dashboard.html (single file, no external assets)
 src/jira-sync.ts Jira issue -> ticket note (only-if-changed), done from status
+src/jira-api.ts  Jira REST search with API token (Refresh button, CLI)
 src/cli/         reindex [--full] [--no-embed], search, mcp-smoke
 ```
 
