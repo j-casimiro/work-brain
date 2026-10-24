@@ -1,8 +1,20 @@
 # Ticket notes: how the `jira*` skills write to the Work brain
 
 The four `jira*` skills in `C:\Users\jehu.casimiro\.claude\skills\` end by calling this procedure.
-Until the REST/MCP adapter exists (step 5), they write markdown straight into the vault and reindex.
-After step 5, replace "Write the file" and "Reindex" below with `POST /memories` (or MCP `write_note`); the skills themselves don't need to change.
+
+## Preferred: the `work-brain` MCP tools
+
+When the `work-brain` MCP tools are available:
+
+1. `get_note` with the Jira key. If it exists, read it so tags/links and other sections are known.
+2. `search` for the main modules/features you touched, so `links` point at existing module/feature/calc notes.
+3. `write_note` with `type: "ticket"`, `ext_id: <KEY>`, `title`, `date` (today; ignored if the note exists), `status`, `source: "jira"`, `tags`, `links`, `commit_sha` when known, and `body` holding **only the `## ` sections this skill owns**. The server keeps the original date, merges tags/links, leaves other sections and hand edits alone, and indexes the note. No reindex step needed.
+
+The rules below (frontmatter meanings, section content, local only, report line) still apply.
+
+## Fallback: write the file directly
+
+If the MCP tools aren't available in the session, edit the file as follows, then reindex.
 
 **Local only.** These notes stay on this laptop: never paste them into Jira, a PR, or any external service.
 

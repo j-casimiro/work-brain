@@ -4,13 +4,18 @@
   "private": true,
   "type": "module",
   "description": "Memory core for the brain-extension vaults (Work instance).",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "reindex": "tsx src/cli/reindex.ts",
     "search": "tsx src/cli/search.ts",
+    "mcp": "tsx src/mcp.ts",
+    "mcp:smoke": "tsx src/cli/mcp-smoke.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
     "better-sqlite3": "^12.4.1",
     "gray-matter": "^4.0.3",
     "zod": "^3.25.76"

@@ -63,6 +63,7 @@ export function openDb(dbPath: string): DB {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
+  db.pragma("busy_timeout = 5000"); // MCP server and CLI reindex may write at the same time
   db.pragma("foreign_keys = ON");
   db.exec(SCHEMA);
   return db;
