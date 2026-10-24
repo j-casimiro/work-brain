@@ -2,7 +2,10 @@ import type { DB } from "./db.js";
 import { embedQuery } from "./embed.js";
 import { knn } from "./vectors.js";
 
-export interface SearchFilters { brain?: string; type?: string; from?: string; to?: string; limit?: number }
+export interface SearchFilters {
+  brain?: string; type?: string; from?: string; to?: string; limit?: number;
+  by?: "date" | "updated"; // which date from/to apply to (default: the note's own date)
+}
 export interface SearchHit {
   path: string; title: string; type: string; ext_id: string; date: string;
   heading: string; snippet: string; score: number;
@@ -18,8 +21,9 @@ function filterSql(f: SearchFilters, params: unknown[]) {
   const where: string[] = [];
   if (f.brain) { where.push("n.brain = ?"); params.push(f.brain); }
   if (f.type) { where.push("n.type = ?"); params.push(f.type); }
-  if (f.from) { where.push("n.date >= ?"); params.push(f.from); }
-  if (f.to) { where.push("n.date <= ?"); params.push(f.to); }
+  const col = f.by === "updated" ? "n.updated" : "n.date";
+  if (f.from) { where.push(`${col} >= ?`); params.push(f.from); }
+  if (f.to) { where.push(`${col} <= ?`); params.push(f.to); }
   return where.length ? ` AND ${where.join(" AND ")}` : "";
 }
 
@@ -113,8 +117,9 @@ export function related(db: DB, noteId: number) {
 /** Dated notes in a range, oldest first. No search involved. */
 export function timeline(db: DB, f: SearchFilters = {}) {
   const params: unknown[] = [];
-  const sql = `SELECT n.path, n.title, n.type, n.ext_id, n.date, n.status FROM notes n
-               WHERE 1=1${filterSql(f, params)} ORDER BY n.date, n.path LIMIT ?`;
+  const order = f.by === "updated" ? "n.updated" : "n.date";
+  const sql = `SELECT n.path, n.title, n.type, n.ext_id, n.date, n.updated, n.status FROM notes n
+               WHERE 1=1${filterSql(f, params)} ORDER BY ${order}, n.path LIMIT ?`;
   params.push(f.limit ?? 200);
   return db.prepare(sql).all(...params);
 }

@@ -39,8 +39,11 @@ server.registerTool("search", {
 }, async ({ q, ...f }) => json(await search(db, q, { brain, ...f })));
 
 server.registerTool("timeline", {
-  description: "Notes dated within a range, oldest first (e.g. what was worked on this week).",
-  inputSchema: { from: date.optional(), to: date.optional(), type: type.optional(), limit: z.number().int().min(1).max(500).optional() },
+  description: "Notes within a date range, oldest first. by='date' (default) uses each note's own date (when the ticket/decision started); by='updated' uses its last update, e.g. from=to=today for everything touched today.",
+  inputSchema: {
+    from: date.optional(), to: date.optional(), type: type.optional(),
+    by: z.enum(["date", "updated"]).optional(), limit: z.number().int().min(1).max(500).optional(),
+  },
 }, async (f) => json(timeline(db, { brain, ...f })));
 
 server.registerTool("get_note", {

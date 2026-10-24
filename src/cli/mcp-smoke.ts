@@ -111,6 +111,8 @@ const sem = (JSON.parse(r.text) as { ext_id: string; match: string }[]).find((h)
 check("semantic search finds a paraphrase", sem?.match === "semantic", r.text);
 r = await call("search", { q: "zebra migration patterns in the serengeti" });
 check("unrelated query returns nothing", JSON.parse(r.text).length === 0, r.text);
+r = await call("timeline", { by: "updated", from: new Date().toLocaleDateString("en-CA") });
+check("timeline by updated finds notes touched today", (JSON.parse(r.text) as { ext_id: string }[]).some((n) => n.ext_id === "SMS-2"), r.text);
 const cov = peek<{ c: number; v: number }>("SELECT (SELECT count(*) FROM chunks) AS c, (SELECT count(*) FROM chunks_vec) AS v");
 check("every chunk is embedded", cov.c > 0 && cov.c === cov.v, JSON.stringify(cov));
 
