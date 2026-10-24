@@ -12,6 +12,8 @@ When the `work-brain` MCP tools are available:
 
 The rules below (frontmatter meanings, section content, local only, report line) still apply.
 
+**Done:** when the user says a ticket is done (dev implementation or fix finished), call `mark_done` with the key (`undo: true` to reopen). It shows on the ticket dashboard at http://127.0.0.1:4317.
+
 ## Fallback: write the file directly
 
 If the MCP tools aren't available in the session, edit the file as follows, then reindex.
@@ -34,7 +36,9 @@ id: SMS-1011            # verified Jira key, exactly once
 title: <Jira summary, verbatim>
 date: YYYY-MM-DD        # day the note was first created; never change it afterwards
 updated: YYYY-MM-DD     # today, on every write
+done: YYYY-MM-DD        # day dev implementation/fix finished: set by jira-pr-creator on PR, or when the user says done (MCP `mark_done`). Not the Jira status. Omit until then.
 status: <Jira status name, verbatim, e.g. "Done in BRANCH">
+assignee: <Jira assignee display name, verbatim, e.g. "Jehu Casimiro"; the dashboard shows only the user's tickets>
 source: jira
 commit_sha: <latest milestone commit, once one exists>
 tags: [<2–5 lowercase-hyphenated topics from the analysis, e.g. events-planner, work-requests>]

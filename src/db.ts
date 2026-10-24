@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS notes (
   status TEXT,
   source TEXT,
   commit_sha TEXT,
+  done TEXT,                          -- YYYY-MM-DD, tickets only
+  assignee TEXT,                      -- Jira display name, tickets only
   content_hash TEXT,
   UNIQUE (brain, type, ext_id)
 );
@@ -69,6 +71,12 @@ export function openDb(dbPath: string, vec: { model: string; dim: number }): DB 
   db.pragma("foreign_keys = ON");
   sqliteVec.load(db);
   db.exec(SCHEMA);
+  // Columns added after a DB was first created (CREATE TABLE IF NOT EXISTS won't add them).
+  const cols = new Set((db.pragma("table_info(notes)") as { name: string }[]).map((c) => c.name));
+  for (const col of ["done", "assignee"]) {
+    // content_hash = NULL forces a re-read so the new column gets filled from the files.
+    if (!cols.has(col)) db.exec(`ALTER TABLE notes ADD COLUMN ${col} TEXT; UPDATE notes SET content_hash = NULL;`);
+  }
   ensureVec(db, vec.model, vec.dim);
   return db;
 }

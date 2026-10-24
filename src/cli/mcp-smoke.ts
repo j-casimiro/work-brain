@@ -44,7 +44,7 @@ const whyChunk = () => peek<{ id: number } | undefined>(
   "SELECT c.id FROM chunks c JOIN notes n ON n.id = c.note_id WHERE n.ext_id = 'SMS-1' AND c.heading = 'Why'")?.id;
 
 const tools = (await client.listTools()).tools.map((t) => t.name).sort();
-check("lists 6 tools", tools.join() === "append_log,get_note,related,search,timeline,write_note", tools.join());
+check("lists 7 tools", tools.join() === "append_log,get_note,mark_done,related,search,timeline,write_note", tools.join());
 
 let r = await call("write_note", {
   type: "ticket", ext_id: "SMS-1", title: "Smoke ticket", date: "2026-10-24", status: "In Progress", source: "jira",
@@ -69,8 +69,20 @@ check("update keeps Summary and Why", merged.includes("Work requests show in pla
 check("update sets What changed", merged.includes("- Branch fix/SMS-1-smoke"));
 check("update keeps original date", /^date: 2026-10-24$/m.test(merged), merged);
 check("status with spaces round-trips", /^status: Done in BRANCH$/m.test(merged), merged);
+check("missing optional fields stay empty, not \"undefined\"",
+  peek<{ n: number }>("SELECT count(*) AS n FROM notes WHERE 'undefined' IN (status, source, commit_sha, assignee, done)").n === 0);
 check("tags merged", /^tags: \[planner, settings\]$/m.test(merged), merged);
 check("unchanged section keeps its chunk id", whyBefore !== undefined && whyChunk() === whyBefore, `${whyBefore} -> ${whyChunk()}`);
+
+r = await call("mark_done", { id: "sms-1", date: "2026-10-23" });
+check("mark_done sets done in frontmatter", !r.isError && /^done: 2026-10-23$/m.test(read(rel)), r.text);
+check("mark_done keeps the body", read(rel).includes("- hand-written note"));
+r = await call("mark_done", { id: "SMS-1", undo: true });
+check("mark_done undo clears it", !r.isError && !/^done:/m.test(read(rel)), r.text);
+r = await call("mark_done", { id: "SMS-404" });
+check("mark_done unknown ticket is an error", r.isError);
+await call("write_note", { type: "ticket", ext_id: "SMS-1", title: "Smoke ticket", date: "2026-10-24", assignee: "Jehu Casimiro" });
+check("assignee round-trips", /^assignee: Jehu Casimiro$/m.test(read(rel)), read(rel));
 
 r = await call("search", { q: "work request" });
 check("search finds stemmed words", r.text.includes("SMS-1"), r.text);

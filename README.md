@@ -35,6 +35,18 @@ claude mcp add --scope user work-brain -- "C:\Program Files\nodejs\node.exe" C:\
 Tools: `search`, `timeline`, `get_note`, `related`, `write_note`, `append_log`. `write_note` merges by `## ` section (see `src/writer.ts`).
 On start the server runs an incremental reindex, then a chokidar watcher keeps the index current while it runs (hand edits in Obsidian/VS Code included).
 
+## Ticket dashboard
+
+```powershell
+npm run web    # http://127.0.0.1:4317
+```
+
+- Tickets from the brain, grouped by `done` date: Today, This week (Mon–), Last week, This month, Last month, All done, plus Open (no `done` yet). Click a row for Summary / What changed / Follow-ups, the PR link and branch.
+- **Done** = dev implementation/fix finished, separate from the Jira status. Set by `jira-pr-creator` when it creates a PR, by MCP `mark_done` when you tell Claude a ticket is done, or by the page's Mark done / Reopen button. Stored as `done: YYYY-MM-DD` in the note.
+- Only tickets assigned to `JIRA_ASSIGNEE` (default "Jehu Casimiro") are shown; notes with no `assignee` still show; the header counts the hidden ones.
+- Live: the server watches the vault and pushes an SSE event on every change; the page re-fetches. Changes from skills, MCP tools and hand edits show within about a second.
+- Local only: bound to 127.0.0.1, rejects other `Host` headers (DNS rebinding), and writes need an `x-brain` header plus same-origin (no cross-site requests). No CDN assets.
+
 ## Search and embeddings
 
 - `search` = BM25 top 30 + vector kNN top 30, fused by reciprocal rank (`1/(60+rank)`); exact `ext_id` first; one hit per note; each hit says `keyword`, `semantic` or `both`.
@@ -57,9 +69,11 @@ src/vectors.ts   embedPending (only chunks without a vector), knn
 src/watch.ts     chokidar watcher, debounced batches
 src/writer.ts    write_note / append_log: payload -> markdown at the right path, section merge, then index
 src/mcp.ts       MCP adapter (stdio)
+src/web.ts       ticket dashboard + REST (Hono), SSE live updates
+src/web/         dashboard.html (single file, no external assets)
 src/cli/         reindex [--full] [--no-embed], search, mcp-smoke
 ```
 
 ## Next
 
-5b. Hono REST adapter over the same core (`/memories`, `/search`, `/timeline`, `/related`), bearer token, 127.0.0.1 only
+5b. More REST routes on `src/web.ts` (`/memories`, `/search`, `/timeline`, `/related`) if something outside Claude needs them

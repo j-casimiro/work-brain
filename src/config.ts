@@ -27,4 +27,9 @@ export const config = {
   embedModel: process.env.EMBED_MODEL ?? "Xenova/bge-small-en-v1.5",
   embedDim: Number(process.env.EMBED_DIM ?? 384),
   modelsDir: path.resolve(root, process.env.MODELS_DIR ?? "./models"),
+  // Ticket dashboard (src/web.ts): always bound to 127.0.0.1.
+  webPort: Number(process.env.WEB_PORT ?? 4317),
+  jiraBrowseUrl: process.env.JIRA_BROWSE_URL ?? "https://samurai-cmms.atlassian.net/browse/",
+  // The dashboard hides tickets assigned to anyone else (tickets with no assignee recorded still show).
+  jiraAssignee: process.env.JIRA_ASSIGNEE ?? "Jehu Casimiro",
 };

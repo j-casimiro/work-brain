@@ -26,7 +26,7 @@ export function notePath(type: NoteType, extId: string, date: string): string {
 interface Section { heading: string; lines: string[] }
 
 /** Split on "## " headings (outside code fences). sections[0] is the preamble, heading "". */
-function splitSections(body: string): Section[] {
+export function splitSections(body: string): Section[] {
   const out: Section[] = [{ heading: "", lines: [] }];
   let inFence = false;
   for (const line of body.split(/\r?\n/)) {
@@ -76,7 +76,7 @@ function templateBody(vaultDir: string, type: NoteType): string {
 // YAML scalars: plain when obviously safe, otherwise JSON-quoted (JSON strings are valid YAML).
 const yamlScalar = (v: string) => (/^[A-Za-z0-9][\w .\/-]*$/.test(v) && !/:\s|\s#/.test(v) ? v : JSON.stringify(v));
 const yamlList = (xs: string[]) => `[${xs.map(yamlScalar).join(", ")}]`;
-const FM_ORDER = ["brain", "type", "id", "title", "date", "updated", "status", "source", "commit_sha", "tags", "links"];
+const FM_ORDER = ["brain", "type", "id", "title", "date", "updated", "done", "status", "assignee", "source", "commit_sha", "tags", "links"];
 
 function renderFrontmatter(data: Record<string, unknown>): string {
   const keys = [...FM_ORDER.filter((k) => k in data), ...Object.keys(data).filter((k) => !FM_ORDER.includes(k))];
@@ -113,7 +113,7 @@ export function writeNote(db: DB, indexer: Indexer, vaultDir: string, input: unk
     ...old.data,
     brain: p.brain, type: p.type, id: (old.data.id as string) ?? p.ext_id, title: p.title,
     date: old.data.date ?? p.date, updated: today(),
-    status: p.status ?? old.data.status, source: p.source, commit_sha: p.commit_sha ?? old.data.commit_sha,
+    status: p.status ?? old.data.status, assignee: p.assignee ?? old.data.assignee, source: p.source, commit_sha: p.commit_sha ?? old.data.commit_sha,
     tags: union(old.data.tags, p.tags), links: union(old.data.links, p.links),
   };
   const update = [p.summary.trim() ? `## Summary\n\n${p.summary.trim()}\n` : "", p.body].join("\n");
@@ -124,6 +124,20 @@ export function writeNote(db: DB, indexer: Indexer, vaultDir: string, input: unk
   const indexed = indexer.indexFile(abs);
   indexer.resolveLinks();
   return { path: rel, created, indexed };
+}
+
+/** Set (or clear, with date = null) a ticket's `done` date. Touches only frontmatter. */
+export function setDone(db: DB, indexer: Indexer, vaultDir: string, brain: string, extId: string, date: string | null) {
+  const row = db.prepare<[string, string], { path: string }>(
+    "SELECT path FROM notes WHERE brain=? AND type='ticket' AND lower(ext_id)=lower(?)").get(brain, extId);
+  if (!row) throw new Error(`No ticket note "${extId}". Create it first (write_note).`);
+  const abs = path.join(vaultDir, ...row.path.split("/"));
+  const { data, content } = matter(fs.readFileSync(abs, "utf8"));
+  const next: Record<string, unknown> = { ...data, updated: today() };
+  if (date) next.done = date; else delete next.done;
+  fs.writeFileSync(abs, `${renderFrontmatter(next)}\n${content.replace(/^\r?\n/, "")}`);
+  indexer.indexFile(abs);
+  return { path: row.path, done: date };
 }
 
 /** Add a bullet under a section of a day's journal (default today, section "Did"), creating it from the template. */

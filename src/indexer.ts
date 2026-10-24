@@ -33,11 +33,12 @@ export class Indexer {
   private prepare() { return {
     byPath: this.db.prepare<[string], { id: number; content_hash: string }>("SELECT id, content_hash FROM notes WHERE path = ?"),
     upsert: this.db.prepare(`
-      INSERT INTO notes (path, brain, type, ext_id, title, date, updated, status, source, commit_sha, content_hash)
-      VALUES (@path, @brain, @type, @ext_id, @title, @date, @updated, @status, @source, @commit_sha, @content_hash)
+      INSERT INTO notes (path, brain, type, ext_id, title, date, updated, status, source, commit_sha, done, assignee, content_hash)
+      VALUES (@path, @brain, @type, @ext_id, @title, @date, @updated, @status, @source, @commit_sha, @done, @assignee, @content_hash)
       ON CONFLICT(path) DO UPDATE SET brain=excluded.brain, type=excluded.type, ext_id=excluded.ext_id,
         title=excluded.title, date=excluded.date, updated=excluded.updated, status=excluded.status,
-        source=excluded.source, commit_sha=excluded.commit_sha, content_hash=excluded.content_hash
+        source=excluded.source, commit_sha=excluded.commit_sha, done=excluded.done, assignee=excluded.assignee,
+        content_hash=excluded.content_hash
       RETURNING id`),
     delChunks: this.db.prepare("DELETE FROM chunks WHERE note_id = ?"),
     chunksOf: this.db.prepare<[number], { id: number; hash: string }>("SELECT id, hash FROM chunks WHERE note_id = ?"),
@@ -87,7 +88,7 @@ export class Indexer {
       const { id } = this.q.upsert.get({
         path: rel, brain: fm.brain, type: fm.type, ext_id: fm.id, title: fm.title, date: fm.date,
         updated: fm.updated ?? fm.date, status: fm.status ?? null, source: fm.source ?? null,
-        commit_sha: fm.commit_sha ?? null, content_hash: hash,
+        commit_sha: fm.commit_sha ?? null, done: fm.done ?? null, assignee: fm.assignee ?? null, content_hash: hash,
       }) as { id: number };
       this.q.delLinks.run(id); this.q.delTags.run(id);
       // Keep rows (and so their embeddings) for chunks whose content hash is unchanged; replace the rest.

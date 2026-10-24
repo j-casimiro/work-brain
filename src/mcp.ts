@@ -11,7 +11,7 @@ import { NOTE_TYPES } from "./schema.js";
 import { findNote, related, search, timeline } from "./search.js";
 import { embedPending } from "./vectors.js";
 import { watchVault } from "./watch.js";
-import { appendLog, writeNote } from "./writer.js";
+import { appendLog, setDone, today, writeNote } from "./writer.js";
 
 console.log = console.error; // anything that logs must not corrupt the protocol stream
 
@@ -70,10 +70,18 @@ server.registerTool("write_note", {
     title: z.string().min(1), date: date.describe("YYYY-MM-DD; only used when the note is created"),
     summary: z.string().optional(), body: z.string().optional().describe("Markdown with '## ' sections to set"),
     tags: z.array(z.string()).optional(), links: z.array(z.string()).optional(),
-    status: z.string().optional(), source: z.string().optional().describe('e.g. "jira"; default "agent"'), commit_sha: z.string().optional(),
+    status: z.string().optional(), assignee: z.string().optional().describe("tickets: Jira assignee display name, verbatim"), source: z.string().optional().describe('e.g. "jira"; default "agent"'), commit_sha: z.string().optional(),
   },
 }, async (args) => {
   try { const r = writeNote(db, indexer, config.vaultDir, { brain, ...args }); await embedNow(); return json(r); }
+  catch (e) { return fail(String(e)); }
+});
+
+server.registerTool("mark_done", {
+  description: "Mark a ticket's dev implementation/fix as done (sets `done` in its note; shown on the ticket dashboard). Use when the user says a ticket is done, or after a PR is created. This is separate from the Jira status. undo=true clears it.",
+  inputSchema: { id: z.string().min(1).describe("Jira key, e.g. SMS-1011"), date: date.optional().describe("default today"), undo: z.boolean().optional() },
+}, async ({ id, date, undo }) => {
+  try { return json(setDone(db, indexer, config.vaultDir, brain, id, undo ? null : date ?? today())); }
   catch (e) { return fail(String(e)); }
 });
 

@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ticket Tracker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%232f6f5e'/%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f6f5f1; --surface: #ffffff; --surface-2: #f0efea; --border: #e2e0d8;
+    --text: #1d1d1b; --muted: #6b6a64; --faint: #9a988f;
+    --accent: #2f6f5e; --accent-soft: #e3efe9; --accent-text: #ffffff;
+    --warn-soft: #f6ecd9; --warn-text: #7a5410; --link: #245ea8;
+    --shadow: 0 1px 2px rgba(20, 20, 10, .05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #151614; --surface: #1d1f1c; --surface-2: #252824; --border: #30332e;
+      --text: #ecebe6; --muted: #a3a29b; --faint: #74736d;
+      --accent: #5fb39a; --accent-soft: #1f3a32; --accent-text: #0e1a16;
+      --warn-soft: #3a2f1b; --warn-text: #e3bf7a; --link: #7fb0ec;
+      --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #151614; --surface: #1d1f1c; --surface-2: #252824; --border: #30332e;
+    --text: #ecebe6; --muted: #a3a29b; --faint: #74736d;
+    --accent: #5fb39a; --accent-soft: #1f3a32; --accent-text: #0e1a16;
+    --warn-soft: #3a2f1b; --warn-text: #e3bf7a; --link: #7fb0ec;
+    --shadow: none;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; }
+  .who { color: var(--muted); font-size: 13px; }
+  .live { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+  .live.on .dot { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .search {
+    margin-left: auto; min-width: 0; flex: 0 1 240px; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit;
+  }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .tab {
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    padding: 6px 11px; border-radius: 999px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .tab .n { color: var(--muted); margin-left: 4px; font-variant-numeric: tabular-nums; }
+  .tab[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .tab[aria-pressed="true"] .n { color: inherit; opacity: .8; }
+  .sep { width: 1px; background: var(--border); margin: 2px 4px; }
+  .summary { color: var(--muted); margin: 14px 0 18px; }
+  .summary b { color: var(--text); }
+  .group { margin-bottom: 18px; }
+  .group h2 {
+    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--muted); margin: 0 0 6px 2px;
+  }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+  .row { display: grid; grid-template-columns: 92px 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; cursor: pointer; }
+  .row + .detail, .row + .row, .detail + .row { border-top: 1px solid var(--border); }
+  .row:hover { background: var(--surface-2); }
+  .key { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--link); text-decoration: none; }
+  .key:hover { text-decoration: underline; }
+  .title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .meta { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .pill { padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 12px; }
+  .pill.done { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+  .pill.marked { background: var(--warn-soft); border-color: transparent; color: var(--warn-text); }
+  .detail { padding: 4px 14px 14px 118px; background: var(--surface); }
+  .detail h3 { font-size: 12px; color: var(--muted); margin: 12px 0 4px; font-weight: 600; }
+  .detail p { margin: 0; white-space: pre-wrap; word-break: break-word; }
+  .detail .facts { color: var(--muted); font-size: 12px; margin-top: 12px; display: flex; gap: 14px; flex-wrap: wrap; }
+  .detail a { color: var(--link); }
+  .actions { margin-top: 12px; display: flex; gap: 8px; }
+  .btn {
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+    border-radius: 7px; padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .empty { padding: 28px 16px; text-align: center; color: var(--muted); }
+  .error { color: var(--warn-text); background: var(--warn-soft); padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; }
+  @media (max-width: 640px) {
+    .row { grid-template-columns: 78px 1fr; }
+    .meta { grid-column: 2; }
+    .detail { padding-left: 14px; }
+    .search { flex-basis: 100%; margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Tickets</h1>
+    <span class="who" id="who"></span>
+    <span class="live" id="live"><span class="dot"></span><span id="live-text">connecting</span></span>
+    <input class="search" id="q" type="search" placeholder="Filter by key or title" autocomplete="off">
+  </header>
+  <div class="tabs" id="tabs" role="toolbar" aria-label="Range"></div>
+  <div id="error"></div>
+  <div class="summary" id="summary"></div>
+  <div id="list"></div>
+</div>
+<script>
+"use strict";
+const RANGES = [
+  ["today", "Today"], ["week", "This week"], ["lastweek", "Last week"],
+  ["month", "This month"], ["lastmonth", "Last month"], ["all", "All done"],
+];
+let data = { today: null, tickets: [] };
+let view = "week";
+try { view = localStorage.getItem("view") || view; } catch {}
+const open = new Set();
+
+// --- dates (local, YYYY-MM-DD strings compare correctly) ---
+const parse = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+function range(key, todayStr) {
+  const t = parse(todayStr);
+  const monday = addDays(t, -((t.getDay() + 6) % 7)); // weeks start Monday
+  switch (key) {
+    case "today": return [todayStr, todayStr];
+    case "week": return [fmt(monday), todayStr];
+    case "lastweek": return [fmt(addDays(monday, -7)), fmt(addDays(monday, -1))];
+    case "month": return [fmt(new Date(t.getFullYear(), t.getMonth(), 1)), todayStr];
+    case "lastmonth": return [fmt(new Date(t.getFullYear(), t.getMonth() - 1, 1)), fmt(new Date(t.getFullYear(), t.getMonth(), 0))];
+    default: return [null, null];
+  }
+}
+const inRange = (d, [from, to]) => !!d && (!from || d >= from) && (!to || d <= to);
+const dayLabel = (s) => {
+  if (s === data.today) return "Today";
+  if (s === fmt(addDays(parse(data.today), -1))) return "Yesterday";
+  return parse(s).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: parse(s).getFullYear() === parse(data.today).getFullYear() ? undefined : "numeric" });
+};
+const short = (s) => parse(s).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+
+// --- DOM helper: text only, never innerHTML with data ---
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k.startsWith("on")) el.addEventListener(k.slice(2), v); else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid instanceof Node ? kid : String(kid));
+  return el;
+}
+
+function matches(t) {
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  return !q || t.ext_id.toLowerCase().includes(q) || t.title.toLowerCase().includes(q);
+}
+
+function renderTabs() {
+  const tabs = document.getElementById("tabs");
+  tabs.replaceChildren();
+  const done = data.tickets.filter((t) => t.done && matches(t));
+  const tab = (key, label, n) => h("button", {
+    class: "tab", "aria-pressed": String(view === key),
+    onclick: () => { view = key; try { localStorage.setItem("view", key); } catch {} render(); },
+  }, label, h("span", { class: "n" }, n));
+  for (const [key, label] of RANGES) tabs.append(tab(key, label, done.filter((t) => inRange(t.done, range(key, data.today))).length));
+  tabs.append(h("span", { class: "sep" }));
+  tabs.append(tab("open", "Open", data.tickets.filter((t) => !t.done && matches(t)).length));
+}
+
+async function setDone(key, undo) {
+  const res = await fetch(`/api/tickets/${encodeURIComponent(key)}/done`, {
+    method: "POST", headers: { "content-type": "application/json", "x-brain": "1" }, body: JSON.stringify({ undo }),
+  });
+  if (!res.ok) showError(`Couldn't update ${key}: ${(await res.json().catch(() => ({}))).error || res.status}`);
+  await load();
+}
+
+function detail(t) {
+  const sec = (name) => t.sections[name] ? [h("h3", {}, name), h("p", {}, t.sections[name])] : [];
+  return h("div", { class: "detail" },
+    sec("Summary"), sec("What changed"), sec("Follow-ups"),
+    h("div", { class: "facts" },
+      h("span", {}, `Started ${short(t.date)}`),
+      h("span", {}, `Updated ${short(t.updated)}`),
+      t.done && h("span", {}, `Done ${short(t.done)}`),
+      t.branch && h("span", {}, t.branch),
+      t.pr && h("a", { href: t.pr, target: "_blank", rel: "noopener" }, "Pull request"),
+      h("span", {}, t.path)),
+    h("div", { class: "actions" },
+      t.done
+        ? h("button", { class: "btn", onclick: (e) => { e.stopPropagation(); setDone(t.ext_id, true); } }, "Reopen")
+        : h("button", { class: "btn primary", onclick: (e) => { e.stopPropagation(); setDone(t.ext_id, false); } }, "Mark done today")));
+}
+
+function row(t, showDone) {
+  const toggle = () => { open.has(t.ext_id) ? open.delete(t.ext_id) : open.add(t.ext_id); render(); };
+  const how = t.done ? (t.pr ? h("span", { class: "pill done" }, "PR") : h("span", { class: "pill marked" }, "marked done")) : null;
+  const els = [h("div", { class: "row", onclick: toggle, role: "button", tabindex: "0", "aria-expanded": String(open.has(t.ext_id)),
+                         "aria-label": `${t.ext_id} ${t.title}`,
+                         onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } } },
+    h("a", { class: "key", href: t.jira_url, target: "_blank", rel: "noopener", onclick: (e) => e.stopPropagation() }, t.ext_id),
+    h("span", { class: "title", title: t.title }, t.title),
+    h("span", { class: "meta" }, how, t.status && h("span", { class: "pill" }, t.status), !showDone && `updated ${short(t.updated)}`))];
+  if (open.has(t.ext_id)) els.push(detail(t));
+  return els;
+}
+
+function render() {
+  if (!data.today) return;
+  renderTabs();
+  const list = document.getElementById("list");
+  const summary = document.getElementById("summary");
+  list.replaceChildren();
+
+  if (view === "open") {
+    const items = data.tickets.filter((t) => !t.done && matches(t)).sort((a, b) => b.updated.localeCompare(a.updated) || a.ext_id.localeCompare(b.ext_id));
+    summary.replaceChildren(h("b", {}, items.length), ` open ticket${items.length === 1 ? "" : "s"}, most recently updated first`);
+    list.append(items.length ? h("div", { class: "card" }, items.flatMap((t) => row(t, false))) : h("div", { class: "card empty" }, "Nothing open."));
+    return;
+  }
+
+  const r = range(view, data.today);
+  const items = data.tickets.filter((t) => matches(t) && inRange(t.done, r))
+    .sort((a, b) => b.done.localeCompare(a.done) || a.ext_id.localeCompare(b.ext_id));
+  const label = RANGES.find(([k]) => k === view)[1].toLowerCase();
+  const span = r[0] && r[0] !== r[1] ? ` (${short(r[0])} – ${short(r[1])})` : "";
+  summary.replaceChildren(h("b", {}, items.length), ` ticket${items.length === 1 ? "" : "s"} done ${view === "all" ? "in total" : label}${span}`);
+  if (!items.length) { list.append(h("div", { class: "card empty" }, "No tickets done in this range.")); return; }
+  const byDay = new Map();
+  for (const t of items) byDay.set(t.done, [...(byDay.get(t.done) || []), t]);
+  for (const [day, ts] of byDay) {
+    list.append(h("section", { class: "group" },
+      h("h2", {}, `${dayLabel(day)} · ${ts.length}`),
+      h("div", { class: "card" }, ts.flatMap((t) => row(t, true)))));
+  }
+}
+
+function showError(msg) {
+  document.getElementById("error").replaceChildren(msg ? h("div", { class: "error" }, msg) : "");
+}
+
+async function load() {
+  try {
+    const res = await fetch("/api/tickets");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    data = await res.json();
+    document.getElementById("who").textContent =
+      `assigned to ${data.assignee}${data.hidden ? ` · ${data.hidden} assigned to others hidden` : ""}`;
+    showError("");
+    render();
+  } catch (e) {
+    showError(`Can't reach the brain server: ${e.message}`);
+  }
+}
+
+// Live updates: the server pings after every vault change.
+function connect() {
+  const live = document.getElementById("live"), text = document.getElementById("live-text");
+  const es = new EventSource("/api/events");
+  es.addEventListener("open", () => { live.classList.add("on"); text.textContent = "live"; load(); });
+  es.addEventListener("changed", load);
+  es.addEventListener("error", () => { live.classList.remove("on"); text.textContent = "reconnecting"; });
+}
+
+document.getElementById("q").addEventListener("input", render);
+load();
+connect();
+</script>
+</body>
+</html>

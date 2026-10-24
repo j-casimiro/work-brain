@@ -12,14 +12,17 @@
     "search": "tsx src/cli/search.ts",
     "mcp": "tsx src/mcp.ts",
     "mcp:smoke": "tsx src/cli/mcp-smoke.ts",
+    "web": "tsx src/web.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/node-server": "2.1.4",
     "@huggingface/tokenizers": "0.2.0",
     "@modelcontextprotocol/sdk": "1.32.2",
     "better-sqlite3": "^12.4.1",
     "chokidar": "5.0.0",
     "gray-matter": "^4.0.3",
+    "hono": "4.13.13",
     "onnxruntime-web": "1.30.0",
     "sqlite-vec": "0.1.9",
     "zod": "^3.25.76"

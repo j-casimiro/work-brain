@@ -11,7 +11,7 @@ const isoDate = z.preprocess(
   (v) => (v instanceof Date ? v.toISOString().slice(0, 10) : v),
   z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD"),
 );
-const optStr = z.preprocess((v) => (v === null || v === "" ? undefined : String(v)), z.string().optional());
+const optStr = z.preprocess((v) => (v == null || v === "" ? undefined : String(v)), z.string().optional());
 const strList = z.preprocess((v) => (v == null ? [] : v), z.array(z.coerce.string()));
 
 /** Frontmatter as it appears in a vault file. */
@@ -25,6 +25,8 @@ export const Frontmatter = z.object({
   status: optStr,
   source: optStr,
   commit_sha: optStr,
+  done: isoDate.optional(), // tickets: day dev implementation/fix finished (PR made, or marked done)
+  assignee: optStr, // tickets: Jira assignee display name
   tags: strList,
   links: strList,
 });
@@ -45,6 +47,7 @@ export const WritePayload = z
     status: z.string().optional(),
     source: z.string().default("agent"),
     commit_sha: z.string().optional(),
+    assignee: z.string().optional(),
   })
   .strict();
 export type WritePayload = z.infer<typeof WritePayload>;
