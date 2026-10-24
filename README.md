@@ -47,6 +47,14 @@ npm run web    # http://127.0.0.1:4317
 - Live: the server watches the vault and pushes an SSE event on every change; the page re-fetches. Changes from skills, MCP tools and hand edits show within about a second.
 - Local only: bound to 127.0.0.1, rejects other `Host` headers (DNS rebinding), and writes need an `x-brain` header plus same-origin (no cross-site requests). No CDN assets.
 
+## Jira sync
+
+`npm run jira-sync -- <search-result.json> [...]` turns saved Atlassian MCP JQL results into ticket notes. Normally run through the `jira-sync` skill (`~\.claude\skills\jira-sync`), which fetches `project = SMS AND assignee = currentUser()`.
+
+- Owns only: title, Jira status, assignee, parent-epic link, issue-type tag, Summary (first prose paragraph of the description, only if the note has none), and `done` when unset.
+- `done` = date of `statuscategorychangedate` when the status is in `JIRA_DONE_STATUSES` (default `Done in BRANCH,Done in PROD`). An existing done date (from a PR or `mark_done`) is never changed or cleared.
+- Writes only when something it owns changed, so re-running doesn't bump `updated` (the journal relies on that).
+
 ## Search and embeddings
 
 - `search` = BM25 top 30 + vector kNN top 30, fused by reciprocal rank (`1/(60+rank)`); exact `ext_id` first; one hit per note; each hit says `keyword`, `semantic` or `both`.
@@ -71,6 +79,7 @@ src/writer.ts    write_note / append_log: payload -> markdown at the right path,
 src/mcp.ts       MCP adapter (stdio)
 src/web.ts       ticket dashboard + REST (Hono), SSE live updates
 src/web/         dashboard.html (single file, no external assets)
+src/jira-sync.ts Jira issue -> ticket note (only-if-changed), done from status
 src/cli/         reindex [--full] [--no-embed], search, mcp-smoke
 ```
 

@@ -13,6 +13,7 @@
     "mcp": "tsx src/mcp.ts",
     "mcp:smoke": "tsx src/cli/mcp-smoke.ts",
     "web": "tsx src/web.ts",
+    "jira-sync": "tsx src/cli/jira-sync.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -94,7 +94,7 @@ export function ensureVec(db: DB, model: string, dim: number) {
       db.exec(`DROP TABLE IF EXISTS chunks_vec;
                CREATE VIRTUAL TABLE chunks_vec USING vec0(embedding float[${dim}] distance_metric=cosine);`);
       db.prepare("INSERT INTO meta (key, value) VALUES ('embed', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(current);
-    })();
+    }).immediate();
   }
   db.exec(`CREATE TRIGGER IF NOT EXISTS chunks_vec_ad AFTER DELETE ON chunks BEGIN
              DELETE FROM chunks_vec WHERE rowid = old.id;

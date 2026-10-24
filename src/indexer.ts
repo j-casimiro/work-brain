@@ -102,7 +102,7 @@ export class Indexer {
       for (const ids of old.values()) for (const stale of ids) this.q.delChunk.run(stale);
       for (const l of links) this.q.insLink.run(id, l);
       for (const t of new Set(fm.tags)) this.q.insTag.run(id, t);
-    })();
+    }).immediate(); // take the write lock up front: a read-then-write upgrade fails instantly under concurrent writers
     return "indexed";
   }
 
@@ -113,7 +113,7 @@ export class Indexer {
 
   removeFile(abs: string) {
     const row = this.q.byPath.get(toRel(this.vaultDir, abs));
-    if (row) this.db.transaction(() => this.removeById(row.id))();
+    if (row) this.db.transaction(() => this.removeById(row.id)).immediate();
   }
 
   resolveLinks() { this.q.resolve.run(); }
@@ -125,7 +125,7 @@ export class Indexer {
     const stats = { indexed: 0, unchanged: 0, skipped: 0, removed: 0 };
     for (const f of files) stats[this.indexFile(f, force)]++;
     for (const row of this.q.allPaths.all()) {
-      if (!seen.has(row.path)) { this.db.transaction(() => this.removeById(row.id))(); stats.removed++; }
+      if (!seen.has(row.path)) { this.db.transaction(() => this.removeById(row.id)).immediate(); stats.removed++; }
     }
     this.resolveLinks();
     return stats;

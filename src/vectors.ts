@@ -22,7 +22,7 @@ export async function embedPending(db: DB): Promise<number> {
         del.run(BigInt(r.id)); // another server process may have embedded it meanwhile
         ins.run(BigInt(r.id), blob(vecs[i]));
       });
-    })();
+    }).immediate();
     total += rows.length;
   }
 }

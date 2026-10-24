@@ -32,4 +32,6 @@ export const config = {
   jiraBrowseUrl: process.env.JIRA_BROWSE_URL ?? "https://samurai-cmms.atlassian.net/browse/",
   // The dashboard hides tickets assigned to anyone else (tickets with no assignee recorded still show).
   jiraAssignee: process.env.JIRA_ASSIGNEE ?? "Jehu Casimiro",
+  // Jira statuses that mean dev implementation/fix is done (jira-sync sets `done` from these).
+  jiraDoneStatuses: (process.env.JIRA_DONE_STATUSES ?? "Done in BRANCH,Done in PROD").split(",").map((s) => s.trim()).filter(Boolean),
 };
