@@ -1,0 +1,24 @@
+{
+  "name": "brain-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Memory core for the brain-extension vaults (Work instance).",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "reindex": "tsx src/cli/reindex.ts",
+    "search": "tsx src/cli/search.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.4.1",
+    "gray-matter": "^4.0.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.18.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}

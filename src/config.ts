@@ -1,0 +1,26 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { BRAINS, type Brain } from "./schema.js";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+// Minimal .env loader (no dependency). Real env vars win.
+const envFile = path.join(root, ".env");
+if (fs.existsSync(envFile)) {
+  for (const line of fs.readFileSync(envFile, "utf8").split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
+}
+
+const brain = (process.env.BRAIN ?? "work") as Brain;
+if (!BRAINS.includes(brain)) throw new Error(`BRAIN must be one of ${BRAINS.join(", ")}`);
+
+export const config = {
+  root,
+  brain,
+  vaultDir: path.resolve(root, process.env.VAULT_DIR ?? "../work-vault"),
+  dbPath: path.resolve(root, process.env.DB_PATH ?? "./data/memory.db"),
+  apiToken: process.env.API_TOKEN ?? "",
+};
