@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import * as sqliteVec from "sqlite-vec";
 
 export type DB = Database.Database;
 
@@ -42,7 +43,8 @@ CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks BEGIN
   INSERT INTO chunks_fts(chunks_fts, rowid, heading, body) VALUES ('delete', old.id, old.heading, old.body);
 END;
 
--- chunks_vec (sqlite-vec) is added in step 4 once the embedding model is chosen.
+-- chunks_vec (sqlite-vec, rowid = chunks.id) is created by ensureVec(): its dimension depends on the model.
+CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 
 CREATE TABLE IF NOT EXISTS links (
   src_note_id INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
@@ -59,14 +61,36 @@ CREATE TABLE IF NOT EXISTS note_tags (
 CREATE INDEX IF NOT EXISTS idx_tags ON note_tags (tag);
 `;
 
-export function openDb(dbPath: string): DB {
+export function openDb(dbPath: string, vec: { model: string; dim: number }): DB {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   db.pragma("busy_timeout = 5000"); // MCP server and CLI reindex may write at the same time
   db.pragma("foreign_keys = ON");
+  sqliteVec.load(db);
   db.exec(SCHEMA);
+  ensureVec(db, vec.model, vec.dim);
   return db;
+}
+
+/**
+ * Create chunks_vec for this model. A different model or dimension drops the old vectors;
+ * every chunk then shows as pending and is re-embedded (no --full needed).
+ */
+export function ensureVec(db: DB, model: string, dim: number) {
+  const get = db.prepare<[string], { value: string }>("SELECT value FROM meta WHERE key = ?");
+  const current = `${model}|${dim}`;
+  const exists = db.prepare("SELECT 1 FROM sqlite_master WHERE name = 'chunks_vec'").get();
+  if (!exists || get.get("embed")?.value !== current) {
+    db.transaction(() => {
+      db.exec(`DROP TABLE IF EXISTS chunks_vec;
+               CREATE VIRTUAL TABLE chunks_vec USING vec0(embedding float[${dim}] distance_metric=cosine);`);
+      db.prepare("INSERT INTO meta (key, value) VALUES ('embed', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(current);
+    })();
+  }
+  db.exec(`CREATE TRIGGER IF NOT EXISTS chunks_vec_ad AFTER DELETE ON chunks BEGIN
+             DELETE FROM chunks_vec WHERE rowid = old.id;
+           END;`);
 }
 
 /** The index is disposable: delete it (and WAL side files) to rebuild from scratch. */

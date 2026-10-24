@@ -4,7 +4,7 @@ import { ZodError } from "zod";
 import type { DB } from "./db.js";
 import { parseNote, sha1 } from "./parse.js";
 
-const IGNORED_DIRS = new Set(["_templates", ".obsidian", ".git", ".trash", "node_modules"]);
+export const IGNORED_DIRS = new Set(["_templates", ".obsidian", ".git", ".trash", "node_modules"]);
 
 /** Vault-relative path with forward slashes, so the DB is identical on Windows and Unix. */
 export const toRel = (vaultDir: string, abs: string) => path.relative(vaultDir, abs).split(path.sep).join("/");
@@ -40,6 +40,9 @@ export class Indexer {
         source=excluded.source, commit_sha=excluded.commit_sha, content_hash=excluded.content_hash
       RETURNING id`),
     delChunks: this.db.prepare("DELETE FROM chunks WHERE note_id = ?"),
+    chunksOf: this.db.prepare<[number], { id: number; hash: string }>("SELECT id, hash FROM chunks WHERE note_id = ?"),
+    delChunk: this.db.prepare("DELETE FROM chunks WHERE id = ?"),
+    setOrd: this.db.prepare("UPDATE chunks SET ord = ? WHERE id = ?"),
     delLinks: this.db.prepare("DELETE FROM links WHERE src_note_id = ?"),
     delTags: this.db.prepare("DELETE FROM note_tags WHERE note_id = ?"),
     delNote: this.db.prepare("DELETE FROM notes WHERE id = ?"),
@@ -86,8 +89,16 @@ export class Indexer {
         updated: fm.updated ?? fm.date, status: fm.status ?? null, source: fm.source ?? null,
         commit_sha: fm.commit_sha ?? null, content_hash: hash,
       }) as { id: number };
-      this.q.delChunks.run(id); this.q.delLinks.run(id); this.q.delTags.run(id);
-      for (const c of chunks) this.q.insChunk.run(id, c.ord, c.heading, c.body, c.hash);
+      this.q.delLinks.run(id); this.q.delTags.run(id);
+      // Keep rows (and so their embeddings) for chunks whose content hash is unchanged; replace the rest.
+      const old = new Map<string, number[]>();
+      for (const c of this.q.chunksOf.all(id)) old.set(c.hash, [...(old.get(c.hash) ?? []), c.id]);
+      for (const c of chunks) {
+        const keep = old.get(c.hash)?.shift();
+        if (keep !== undefined) this.q.setOrd.run(c.ord, keep);
+        else this.q.insChunk.run(id, c.ord, c.heading, c.body, c.hash);
+      }
+      for (const ids of old.values()) for (const stale of ids) this.q.delChunk.run(stale);
       for (const l of links) this.q.insLink.run(id, l);
       for (const t of new Set(fm.tags)) this.q.insTag.run(id, t);
     })();

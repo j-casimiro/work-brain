@@ -15,9 +15,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@huggingface/tokenizers": "0.2.0",
     "@modelcontextprotocol/sdk": "1.32.2",
     "better-sqlite3": "^12.4.1",
+    "chokidar": "5.0.0",
     "gray-matter": "^4.0.3",
+    "onnxruntime-web": "1.30.0",
+    "sqlite-vec": "0.1.9",
     "zod": "^3.25.76"
   },
   "devDependencies": {

@@ -23,4 +23,8 @@ export const config = {
   vaultDir: path.resolve(root, process.env.VAULT_DIR ?? "../work-vault"),
   dbPath: path.resolve(root, process.env.DB_PATH ?? "./data/memory.db"),
   apiToken: process.env.API_TOKEN ?? "",
+  // Local embedding model (transformers.js). Changing either value re-embeds everything on next start.
+  embedModel: process.env.EMBED_MODEL ?? "Xenova/bge-small-en-v1.5",
+  embedDim: Number(process.env.EMBED_DIM ?? 384),
+  modelsDir: path.resolve(root, process.env.MODELS_DIR ?? "./models"),
 };

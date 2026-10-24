@@ -8,16 +8,22 @@ import { config } from "./config.js";
 import { openDb } from "./db.js";
 import { Indexer } from "./indexer.js";
 import { NOTE_TYPES } from "./schema.js";
-import { findNote, related, searchFts, timeline } from "./search.js";
+import { findNote, related, search, timeline } from "./search.js";
+import { embedPending } from "./vectors.js";
+import { watchVault } from "./watch.js";
 import { appendLog, writeNote } from "./writer.js";
 
 console.log = console.error; // anything that logs must not corrupt the protocol stream
 
-const db = openDb(config.dbPath);
+const db = openDb(config.dbPath, { model: config.embedModel, dim: config.embedDim });
 const indexer = new Indexer(db, config.vaultDir, config.brain);
-// No watcher until step 4: an incremental pass before each read picks up hand edits (milliseconds at this size).
-const fresh = () => indexer.reindexAll();
-fresh();
+indexer.reindexAll(); // catch up on edits made while no server was running
+
+// One embedding pass at a time; callers await the pass that covers their change.
+let embedding: Promise<unknown> = Promise.resolve();
+const embedNow = () => (embedding = embedding.then(() => embedPending(db)).catch((e) => console.error(`embedding failed: ${e}`)));
+embedNow(); // in the background: the server answers (keyword-only for pending chunks) while this runs
+watchVault(config.vaultDir, indexer, embedNow);
 
 const brain = config.brain;
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("YYYY-MM-DD");
@@ -28,20 +34,19 @@ const fail = (msg: string) => ({ content: [{ type: "text" as const, text: msg }]
 const server = new McpServer({ name: `${brain}-brain`, version: "0.2.0" });
 
 server.registerTool("search", {
-  description: `Keyword search (stemmed, BM25) over the ${brain} brain's notes: tickets (Jira keys like SMS-1011), journal, decisions, modules, features, calcs. An exact note id ranks first. Returns snippets and paths; use get_note for full text.`,
+  description: `Hybrid search over the ${brain} brain's notes (tickets with Jira keys like SMS-1011, journal, decisions, modules, features, calcs): stemmed keyword (BM25) and local semantic embeddings, fused by rank. Works for exact ids and for paraphrases ("where do work requests get scheduled"). An exact note id ranks first; one hit per note. Each hit says whether it matched by keyword, semantic or both. Use get_note for full text.`,
   inputSchema: { q: z.string().min(1), type: type.optional(), from: date.optional(), to: date.optional(), limit: z.number().int().min(1).max(50).optional() },
-}, async ({ q, ...f }) => { fresh(); return json(searchFts(db, q, { brain, ...f })); });
+}, async ({ q, ...f }) => json(await search(db, q, { brain, ...f })));
 
 server.registerTool("timeline", {
   description: "Notes dated within a range, oldest first (e.g. what was worked on this week).",
   inputSchema: { from: date.optional(), to: date.optional(), type: type.optional(), limit: z.number().int().min(1).max(500).optional() },
-}, async (f) => { fresh(); return json(timeline(db, { brain, ...f })); });
+}, async (f) => json(timeline(db, { brain, ...f })));
 
 server.registerTool("get_note", {
   description: "Full markdown of one note, by id (e.g. SMS-1011, a slug, or a journal date) or vault-relative path.",
   inputSchema: { id: z.string().min(1), type: type.optional() },
 }, async ({ id, type }) => {
-  fresh();
   const n = findNote(db, id, { brain, type });
   if (!n) return fail(`No note "${id}"${type ? ` of type ${type}` : ""}.`);
   return { content: [{ type: "text" as const, text: `<!-- ${n.path} -->\n${fs.readFileSync(path.join(config.vaultDir, n.path), "utf8")}` }] };
@@ -51,7 +56,6 @@ server.registerTool("related", {
   description: "Graph neighbours of a note: what it links to (frontmatter links and [[wikilinks]]; unresolved names included) and what links to it.",
   inputSchema: { id: z.string().min(1), type: type.optional() },
 }, async ({ id, type }) => {
-  fresh();
   const n = findNote(db, id, { brain, type });
   return n ? json({ note: n, ...related(db, n.id) }) : fail(`No note "${id}".`);
 });
@@ -66,7 +70,7 @@ server.registerTool("write_note", {
     status: z.string().optional(), source: z.string().optional().describe('e.g. "jira"; default "agent"'), commit_sha: z.string().optional(),
   },
 }, async (args) => {
-  try { fresh(); return json(writeNote(db, indexer, config.vaultDir, { brain, ...args })); }
+  try { const r = writeNote(db, indexer, config.vaultDir, { brain, ...args }); await embedNow(); return json(r); }
   catch (e) { return fail(String(e)); }
 });
 
@@ -74,7 +78,7 @@ server.registerTool("append_log", {
   description: "Append a bullet to a journal day (default today) under a section (default 'Did'; template sections: Did, Learned, Blocked / waiting, Tomorrow). Creates the day's note from the template if missing.",
   inputSchema: { text: z.string().min(1), section: z.string().optional(), date: date.optional() },
 }, async ({ text, section, date }) => {
-  try { fresh(); return json(appendLog(db, indexer, config.vaultDir, brain, text, section, date)); }
+  try { const r = appendLog(db, indexer, config.vaultDir, brain, text, section, date); await embedNow(); return json(r); }
   catch (e) { return fail(String(e)); }
 });
 
